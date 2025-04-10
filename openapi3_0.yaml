@@ -85,6 +85,7 @@ paths:
         - Authentication
       summary: Register a new user
       description: Submit user information to create a new Trackit account.
+      security: []
       requestBody: 
         required: true
         content:
@@ -166,6 +167,7 @@ paths:
         - Authentication
       summary: OAuth2 Callback Redirect URI
       description: The redirect URI where Trackit receives the authorization code after user login.
+      security: []
       parameters:
         - in: query
           name: code
@@ -237,6 +239,7 @@ paths:
         - Users
       summary: Get a user by ID
       description: Retrieve user details for a given user ID.
+      security: []
       parameters:
         - in: path
           name: userId
@@ -330,6 +333,7 @@ paths:
         - Projects
       summary: Create a new project
       description: Submit project title and description to create a new project.
+      security: []
       requestBody: 
         required: true
         content:
@@ -374,6 +378,7 @@ paths:
         - Projects
       summary: Get a specific project ID
       description: Retrieve the details of a project by providing its unique ID.
+      security: []
       parameters:
         - in: path
           name: projectId
@@ -415,6 +420,7 @@ paths:
         - Projects
       summary: Update a specific project
       description: Modify an existing project's title or description by providing its ID.
+      security: []
       parameters:
         - in: path
           name: projectId
@@ -469,6 +475,7 @@ paths:
         - Projects
       summary: Delete a project
       description: Deletes a project by ID. All associated tasks will also be removed.
+      security: []
       parameters:
         - in: path
           name: projectId
@@ -490,6 +497,7 @@ paths:
         - Tasks
       summary: Get all tasks
       description: Retrieve a paginated list of all tasks assigned to the user. Supports filtering and sorting.
+      security: []
       parameters:
         - name: page
           in: query
@@ -563,6 +571,7 @@ paths:
         - Tasks
       summary: Create a new task
       description: Submit task details to create a new task under a specific project.
+      security: []
       requestBody:
         required: true
         content:
@@ -677,6 +686,7 @@ paths:
         - Tasks 
       summary: Update an entire task
       description: Replaces all attributes of a task with new values.
+      security: []
       parameters:
         - name: taskId
           in: path
@@ -733,6 +743,7 @@ paths:
         - Tasks 
       summary: Partially update a task
       description: Updates one or more attributes of a task (e.g. status or assignee).
+      security: []
       parameters:
         - in: path
           name: taskId
@@ -791,6 +802,7 @@ paths:
         - Tasks 
       summary: Delete a task
       description: Permanently removes a task by its ID.
+      security: []
       parameters:
         - in: path
           name: taskId
@@ -813,6 +825,7 @@ paths:
         - Tasks
       summary: Get all tasks for a project
       description: Retrieve all tasks belonging to the specified project.
+      security: []
       parameters:
         - in: path
           name: projectId
@@ -861,6 +874,7 @@ paths:
         - Tasks
       summary: Update task status
       description: Change the status of a task to reflect its progress.
+      security: []
       parameters:
         - in: path
           name: taskId
@@ -920,6 +934,7 @@ paths:
       summary: Add a comment to a task
       description: |
         Submit a comment to a specific task. Supports @mention syntax (e.g., `@username`) to notify users.
+      security: []
       requestBody:
         required: true
         content:
@@ -966,6 +981,7 @@ paths:
         - Comments
       summary: Get comments for a task
       description: Retrieve all comments associated with a specific task.
+      security: []
       parameters:
         - in: path
           name: taskId
@@ -1045,6 +1061,7 @@ paths:
         - Notifications
       summary: Get all notifications
       description: Retrieve a list of notifications for the authenticated user.
+      security: []
       parameters:
         - in: query
           name: page
@@ -1107,6 +1124,7 @@ paths:
         - Notifications
       summary: Get a notification by its ID
       description: Retrieve details about a specific notification by its ID.
+      security: []
       parameters:
         - in: path
           name: notificationId
@@ -1141,6 +1159,7 @@ paths:
         - Notifications
       summary: Mark a notification as read (full update)
       description: Fully updates the read status of a specific notification by ID.
+      security: []
       parameters:
         - in: path
           name: notificationId
@@ -1200,6 +1219,7 @@ paths:
         - Notifications
       summary: Mark a notification as read (partial update)
       description: Update the specified notification to be marked as read.
+      security: []
       parameters:
         - in: path
           name: notificationId
@@ -1305,6 +1325,7 @@ paths:
         - History
       summary: Get task status change history
       description: Retrieve the history of status changes for a specific task.
+      security: []
       parameters:
         - in: path
           name: taskId
@@ -1369,6 +1390,7 @@ paths:
       summary: Get overview analytics for the user
       description: |
         Retrieve an overview of key productivity metrics for the authenticated user, such as task counts and completion rate.
+      security: []
       responses:
         '200':
           description: Overview analytics successfully retrieved.
