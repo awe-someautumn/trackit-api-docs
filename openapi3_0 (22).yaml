@@ -1,0 +1,1783 @@
+openapi: 3.0.3
+info:
+  title: Trackit API Documentation
+  description: |
+    This is the official API documentation for **Trackit**, a collaborative project and task management tool.
+    
+    🚀 Core Features:
+    - Create and manage tasks within projects
+    - Real-time collaboration through comments and mentions
+    - Track task history and progress updates
+    - Use the integrated ChatGPT assistant for help
+
+    🔒 Security:
+    - Supports Bearer Token, API Key, and OAuth 2.0 flows
+    
+    📌 Special Behaviors:
+    - Use `@mention` in comment content to trigger notifications
+    - Query the `/assistant/ask` endpoint for help using ChatGPT 
+
+  termsOfService: https://example.com/terms/
+  version: 1.0.0
+  contact: 
+    name: Trackit API Support
+    email: api-support@trackitapp.com
+    url: https://example.com/support/
+  license:
+    name: MIT license
+    url: https://opensource.org/license/MIT
+  x-initialOAuth:
+    usePkcewithAuthorizationCodeGrant: true
+    clientId: trackit-client-id
+  x-errorGlossary:
+    description: Common error responses across the Trackit API.
+    errors:
+      - code: 400
+        message: Bad Request - Your request is invalid or malformed.
+      - code: 401
+        message: Unauthorized - Authentication token is missing or invalid.
+      - code: 403
+        message: Forbidden - You are not authorized to access this resource.
+      - code: 404
+        message: Not Found - The requested resource does not exist.
+      - code: 500
+        message: Internal Server Error - Something went wrong on our end.
+
+servers:
+  - url: https://example.com/v1
+    description: Production Server
+  - url: https://example.com/sandbox
+    description: Sandbox Server
+  - url: https://6555ad9d-d24f-4107-b46f-e2343c0d65b7.mock.pstmn.io
+    description: Postman Mock Server for Trackit API specification
+
+tags:
+  - name: Authentication
+    description: User registration and login
+  - name: Users
+    description: Registered user
+  - name: Projects
+    description: Project-level operations
+  - name: Tasks
+    description: Create and manage individual tasks
+  - name: Comments
+    description: Comment threads with @mentions
+  - name: Notifications
+    description: In-app or email-based alerts
+  - name: History
+    description: Task status change logs
+  - name: Analytics
+    description: Overview and insights of user and project activity
+  - name: Assistant
+    description: ChatGPT-powered assistant for Trackit-related help
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+  - oAuth2AuthCode: []
+  - oAuth2ClientCredentials: []
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Submit user information to create a new Trackit account.
+      requestBody: 
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                registration:
+                  $ref: "#/components/schemas/Registration"
+              required:
+                - email
+                - password
+                - fullName
+            example:
+              email: "summer.lee@example.com"
+              password: "passwordforsummer123"
+              fullName: "Summer Lee"
+      responses:
+        '201':
+          description: User registered successfully with provided credentials.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fullName: 
+                    type: string
+              example:
+                fullName: "Summer Lee"
+        '400':
+          $ref: "#/components/responses/ValidationError"
+  
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login to receive a JWT token
+      description: Authenticate an existing user and return a JWT access token for subsequent requests.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: Email address used for login.
+                password:
+                  type: string
+                  description: User account password.
+              required:
+                - email
+                - password
+            example:
+              email: "summer.lee@tracking.com"
+              password: "passwordforsummer123"
+      responses:
+        '200':
+          description: User successfully authenticated and token returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token for authenticated requests.
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  
+  /auth/callback:
+    get:
+      tags:
+        - Authentication
+      summary: OAuth2 Callback Redirect URI
+      description: The redirect URI where Trackit receives the authorization code after user login.
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+          description: Authorization code returned by the OAuth provider.
+        - in: query
+          name: state
+          required: false
+          schema: 
+            type: string
+          description: Optional state parameter for CSRF protection
+      responses:
+        '200':
+          description: OAuth callback successfully processed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "OAuth callback successfully handled."
+        '400':
+          description: Invalid request or missing authorization code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                message: "Missing or invalid authorization code."
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current authenticated user.
+      description: Retrieve information about the currently authenticated user.
+      security:
+        - oAuth2AuthCode:
+            - profile
+      responses:
+        '200':
+          description: User profile successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+              example:
+                data:
+                  userId: "user_001"
+                  fullName: "Winter Doe"
+                  email: "winter.doe@example.com"
+                  username: "winter"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+          
+
+  /users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Get a user by ID
+      description: Retrieve user details for a given user ID.
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            example: "user_001"
+          description: The unique identifier of the user.
+      responses:
+        '200':
+          description: User data successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: 
+                    $ref: '#/components/schemas/User'
+              example:
+                data:
+                  userId: "user_003"
+                  username: "summer"
+                  fullName: "Summer Mi"
+                  email: "summer.mi@example.com"
+
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: Get all projects
+      description: Retrieve a list of all accessible projects for the authenticated user.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number of the result set.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of projects per page.
+      responses:
+        '200':
+          description: A list of projects successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                  meta:
+                    type: object
+                    properties:
+                      page: 
+                        type: integer
+                      totalPages:
+                        type: integer
+                      totalProjects:
+                        type: integer
+              example:
+                data:
+                  - projectId: "proj_001"
+                    title: "Trackit Redesign"
+                    description: "UI/UX overhaul of the Trackit platform."
+                    createdAt: "2025-03-01T10:00:00Z"
+                    updatedAt: "2025-03-03T15:30:00Z"
+                  - projectId: "proj_002"
+                    title: "Marketing Dashboard"
+                    description: "A new dashboard for visualizing marketing KPIs."
+                    createdAt: "2025-03-10T09:15:00Z"
+                    updatedAt: "2025-03-11T11:20:00Z"
+                meta:
+                  page: 1
+                  totalPages: 2
+                  totalProjects: 12
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Projects
+      summary: Create a new project
+      description: Submit project title and description to create a new project.
+      requestBody: 
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: The title of the project.
+                description:
+                  type: string
+                  description: A short explanation of the project's purpose or goals.
+              required:
+                - title
+            example:
+              title: "Website Redesign"
+              description: "A complete overhaul of the corporate website, including branding and UX."
+      responses:
+        '201':
+          description: Project successfully created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Project'
+              example:
+                data:
+                  projectId: "proj_003"
+                  title: "Website Redesign"
+                  description: "A complete overhaul of the corporate website, including branding and UX."
+                  createdAt: "2025-04-08T09:00:00Z"
+                  updatedAt: "2025-04-08T09:00:00Z"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  
+  /projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Get a specific project ID
+      description: Retrieve the details of a project by providing its unique ID.
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+            example: "proj_123"
+          description: Unique identifier of the project.
+      responses:
+        '200':
+          description: Project details successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Project'
+              example:
+                data:
+                  projectId: "proj_112"
+                  title: "Website Redesign"
+                  description: "Redesign the marketing site with new branding."
+                  owner: 
+                    userId: "user_001"
+                    username: "winter"
+                  createdAt: "2025-03-15T09:00:00Z"
+        '404':
+          description: Project not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/NotFoundError'
+              example:
+                status: 404
+                message: "Project not found."
+    put:
+      tags:
+        - Projects
+      summary: Update a specific project
+      description: Modify an existing project's title or description by providing its ID.
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+            example: proj_003
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+            example:
+              title: "Website Revamp"
+              description: "Update layout and content for the new campaign."
+      responses:
+        '200': 
+          description: Project successfully updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Project'
+              example:
+                data:
+                  projectId: "proj_003"
+                  title: "Website Revamp"
+                  description: "Update layout and content for the new campaign."
+                  createdAt: "2025-04-08T09:00:00Z"
+                  updatedAt: "2025-04-09T10:15:00Z"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Project not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/NotFoundError'
+              example:
+                status: 404
+                message: "Project not found."
+    delete: 
+      tags:
+        - Projects
+      summary: Delete a project
+      description: Deletes a project by ID. All associated tasks will also be removed.
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+            example: proj_003
+          description: Unique identifier of the project.
+      responses:
+        '204':
+          description: Project successfully deleted. No content returned.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  
+  
+  /tasks:
+    get: 
+      tags:
+        - Tasks
+      summary: Get all tasks
+      description: Retrieve a paginated list of all tasks assigned to the user. Supports filtering and sorting.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+          description: Page number (default is 1)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+          description: Number of tasks per page (default is 20)
+        - name: status
+          in: query
+          schema: 
+            type: string
+            enum: [pending, in_progress, completed]
+            example: "in_progress"
+          description: Filter tasks by status
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, dueDate, title]
+            example: "createdAt"
+          description: Sort tasks by a field
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            example: "desc"
+          description: Sort direction (ascending or descending)
+      responses: 
+        '200':
+          description: A list of all tasks successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/Task'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+              example:
+                data: 
+                  - taskId: "task_001"
+                    title: "Design homepage"
+                    description: "Create layout wireframes for the homepage"
+                    status: "in_progress"
+                    assignee:
+                      userId: "user_001"
+                      username: "winter"
+                      fullName: "Winter Doe"
+                      email: "winter.doe@example.com"
+                    projectId: "proj_001"
+                    createdAt: "2025-04-01T10:00:00Z"
+                    dueDate: "2025-04-10"
+                meta:
+                  totalItems: 48
+                  page: 1
+                  limit: 10
+                  totalPages: 5
+
+    post: 
+      tags:
+        - Tasks
+      summary: Create a new task
+      description: Submit task details to create a new task under a specific project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectId:
+                  type: string
+                  description: The ID of the project to associate the task with.
+                title:
+                  type: string
+                  description: The title or name of the task.
+                description:
+                  type: string
+                  description: Detailed information or instructions about the task.
+                assignee:
+                  $ref: '#/components/schemas/User'
+                dueDate:
+                  type: string
+                  format: date
+                  description: The due date for the task in YYYY-MM-DD format.
+              required:
+                - projectId
+                - title
+            example:
+              projectId: "proj_001"
+              title: "Create landing page"
+              description: "Landing page for new product launch."
+              assignee:
+                userId: "user_003"
+                username: "summer"
+                fullName: "Summer Mi"
+                email: "summer.mi@example.com"
+              dueDate: "2025-04-15"
+      responses:
+        '201':
+          description: Task successfully created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+              example:
+                data:
+                  taskId: "task_045"
+                  projectId: "proj_001"
+                  title: "Create landing page"
+                  description: "Landing page for new product launch."
+                  status: "pending"
+                  assignee:
+                    userId: "user_003"
+                    username: "summer"
+                    fullName: "Summer Mi"
+                    email: "summer.mi@example.com"
+                  dueDate: "2025-04-15"
+                  createdAt: "2025-04-08T11:12:00Z"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  
+  /tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get a task by task ID
+      description: Retrieve a single task by its ID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+            example: "task_001"
+          description: Unique identifier of the task.
+      responses:
+        '200':
+          description: Task successfully retrieved.
+          content: 
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+                example:
+                  data:
+                    taskId: "task_001"
+                    title: "Design homepage"
+                    description: "Create layout wireframes for the homepage"
+                    status: "in_progress"
+                    assignee:
+                      userId: "user_001"
+                      username: "winter"
+                      fullName: "Winter Doe"
+                      email: "winter.doe@example.com"
+                    projectId: "proj_001"
+                    createdAt: "2025-04-01T10:00:00Z"
+                    dueDate: "2025-04-10"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Tasks 
+      summary: Update an entire task
+      description: Replaces all attributes of a task with new values.
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "task_045"
+          description: Unique identifier of the task.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+            example:
+              taskId: "task_045"
+              title: "Revise landing page copy"
+              description: "Update text and hero section of the landing page."
+              status: "in_progress"
+              assignee:
+                userId: "user_002"
+                username: "spring"
+                fullName: "Spring Lee"
+                email: "spring.lee@example.com"
+              projectId: "proj_001"
+              createdAt: "2025-04-08T11:12:00Z"
+      responses:
+        '200':
+          description: Task successfully updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+              example:
+                data:
+                  taskId: "task_045"
+                  title: "Revise landing page copy"
+                  description: "Update text and hero section of the landing page"
+                  status: "in_progress"
+                  assignee:
+                    userId: "user_002"
+                    username: "spring"
+                    fullName: "Spring Lee"
+                    email: "spring.lee@example.com"
+                  dueDate: "2025-04-16"
+                  createdAt: "2025-04-08T11:12:00Z"
+                  updatedAt: "2025-04-09T13:40:00Z"
+
+    patch:
+      tags:
+        - Tasks 
+      summary: Partially update a task
+      description: Updates one or more attributes of a task (e.g. status or assignee).
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+            example: task_045
+          description: Unique identifier of the task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, in_progress, completed]
+                dueDate:
+                  type: string
+                  format: date
+            example:
+              title: "Refactor landing page layout"
+              status: "in_progress"
+              dueDate: "2025-04-20"
+      responses:
+        '200':
+          description: Task successfully patched.
+          content: 
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  data:
+                    $ref: '#/components/schemas/Task'
+              example:
+                data:
+                  taskId: "task_045"
+                  title: "Refactor landing page layout"
+                  description: "Update text and hero section of the landing page."
+                  status: "in_progress"
+                  assignee:
+                    userId: "user_002"
+                    username: "spring"
+                    fullName: "Spring Lee"
+                    email: "spring.lee@example.com"
+                  projectId: "proj_001"
+                  dueDate: "2025-04-20"
+                  createdAt: "2025-04-08T11:12:00Z"
+                  updatedAt: "2025-04-09T15:45:00Z"
+    
+    delete:
+      tags:
+        - Tasks 
+      summary: Delete a task
+      description: Permanently removes a task by its ID.
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+            example: task_045
+          description: Unique identifier of the task
+      responses:
+        '204':
+          description: Task successfully deleted. No content returned.
+          content: {}
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+
+  /projects/{projectId}/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: Get all tasks for a project
+      description: Retrieve all tasks belonging to the specified project.
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': 
+          description: A list of tasks retrieved for the specified project.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+              example:
+                data:
+                  - taskId: "task_001"
+                    title: "Design homepage"
+                    description: "Create layout wireframes for the homepage"
+                    status: "in_progress"
+                    assignee:
+                      userId: "user_001"
+                      username: "winter"
+                    projectId: "proj_001"
+                    createdAt: "2025-04-01T10:00:00Z"
+                    dueDate: "2025-04-10"
+                meta:
+                  totalItems: 2
+                  page: 1
+                  limit: 10
+                  totalPages: 1
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    
+  /tasks/{taskId}/status:
+    patch:
+      tags:
+        - Tasks
+      summary: Update task status
+      description: Change the status of a task to reflect its progress.
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+            example: task_045
+          description: Unique identifier of the task.
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, in_progress, completed]
+                  description: The new status to assign to the task.
+              required: 
+                - status
+            example: 
+              status: "completed"
+      responses:
+        '200':
+          description: Task status successfully updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+              example:
+                data:
+                  taskId: "task_045"
+                  title: "Revise landing page copy"
+                  description: "Update text and hero section of the landing page"
+                  status: "completed"
+                  assignee:
+                    userId: "user_002"
+                    username: "spring"
+                    fullName: "Spring Lee"
+                    email: "spring.lee@example.com"
+                  dueDate: "2025-04-16"
+                  createdAt: "2025-04-08T11:12:00Z"
+                  updatedAt: "2025-04-09T14:30:00Z"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  
+  /comments:
+    post:
+      tags:
+        - Comments
+      summary: Add a comment to a task
+      description: |
+        Submit a comment to a specific task. Supports @mention syntax (e.g., `@username`) to notify users.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+            example:
+              commentId: "cmt_001"
+              taskId: "task_001"
+              author:
+                userId: "user_001"
+                username: "winter"
+                fullName: "Winter Doe"
+                email: "winter.doe@example.com"
+              content: "@john Please check the latest update on the dashboard."
+              createdAt: "2025-04-02T09:20:00Z"
+      responses:
+        '200': 
+          description: Comment successfully added to the task.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Comment'
+              example:
+                data:
+                  commentId: "cmt_001"
+                  taskId: "task_001"
+                  author:
+                    userId: "user_001"
+                    username: "winter"
+                    fullName: "Winter Lee"
+                    email: "winter.lee@example.com"
+                  content: "@john Please check the latest update on the dashboard."
+                  createdAt: "2025-04-02T10:30:00Z"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  
+  /tasks/{taskId}/comments:
+    get:
+      tags:
+        - Comments
+      summary: Get comments for a task
+      description: Retrieve all comments associated with a specific task.
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+          description: The ID of the task to retrieve comments for.
+        - in: query
+          name: preview
+          required: false
+          schema:
+            type: boolean
+          description: If true, returns only a preview of each comment.
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for paginated results.
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Maximum number of comments to return per page.
+      responses:
+        '200':
+          description: List of comments successfully retrieved for the task.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      totalItems:
+                        type: integer
+              example:
+                data:
+                  - commentId: "cmt_001"
+                    author:
+                      userId: "user_001"
+                      username: "winter"
+                      fullName: "Winter Doe"
+                      email: "winter.doe@example.com"
+                    content: "@mike Please add final logo."
+                    createdAt: "2025-04-01T12:00:00Z"
+                  - commentId: "cmt_002"
+                    author: 
+                      userId: "user_002"
+                      username: "spring"
+                      fullName: "Spring Lee"
+                      email: "spring.lee@example.com"
+                    content: "Final logo added in Figma."
+                    createdAt: "2025-04-01T14:45:00Z"
+                meta:
+                  page: 1
+                  totalPages: 3
+                  totalComments: 25
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get all notifications
+      description: Retrieve a list of notifications for the authenticated user.
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number of the result set.
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of notifications per page.
+      responses:
+        '200':
+          description: A list of notifications successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: 
+                      $ref: '#/components/schemas/Notification'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      totalNotifications:
+                        type: integer
+              example:
+                data:
+                  - notificationId: "notif_001"
+                    type: "mention"
+                    message: "@winter mentioned you in a task."
+                    isRead: false
+                    createdAt: "2025-04-01T08:30:00Z"
+                    mentionedUser:
+                      userId: "user_002"
+                      username: "spring"
+                  - notificationId: "notif_002"
+                    type: "status_update"
+                    message: "Task marked as completed."
+                    isRead: true
+                    createdAt: "2025-04-07T09:00:00Z"
+                meta:
+                  page: 1
+                  totalPages: 2
+                  totalNotifications: 12
+  
+  /notifications/{notificationId}:
+    get:
+      tags:
+        - Notifications
+      summary: Get a notification by its ID
+      description: Retrieve details about a specific notification by its ID.
+      parameters:
+        - in: path
+          name: notificationId
+          required: true
+          schema:
+            type: string
+            example: "notif_001"
+          description: Unique identifier of the notification.
+      responses:
+        '200':
+          description: Notification details successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Notification'
+              example: 
+                data:
+                  notificationId: "notif_001"
+                  type: "mention"
+                  message: "You were mentioned in a comment."
+                  createdAt: "2025-04-01T13:45:00Z"
+                  mentionedUser:
+                    userId: "user_002"
+                    username: "spring"
+                    
+  /notifications/{notificationId}/read:
+    put: 
+      tags:
+        - Notifications
+      summary: Mark a notification as read (full update)
+      description: Fully updates the read status of a specific notification by ID.
+      parameters:
+        - in: path
+          name: notificationId
+          required: true
+          schema:
+            type: string
+            example: notif_001
+          description: The unique ID of the notification to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isRead:
+                  type: boolean
+                  description: Whether the notification has been read.
+              required:
+                - isRead
+            example:
+              isRead: true
+      responses:
+        '200':
+          description: Notification read status successfully updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      notificationId:
+                        type: string
+                      type:
+                        type: string
+                      message: 
+                        type: string
+                      isRead:
+                        type: boolean
+                      createdAt:
+                        type: string
+                        format: date-time
+              example:
+                data:
+                  notificationId: "notif_001"
+                  type: "MentionNotification"
+                  message: "@spring mentioned you in a comment."
+                  isRead: true
+                  createdAt: "2025-04-07T13:10:00Z"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    patch:
+      tags:
+        - Notifications
+      summary: Mark a notification as read (partial update)
+      description: Update the specified notification to be marked as read.
+      parameters:
+        - in: path
+          name: notificationId
+          required: true
+          schema:
+            type: string
+            example: notif_001
+          description: The unique ID of the notification to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isRead:
+                  type: boolean
+              required:
+                - isRead
+              example: 
+                isRead: true
+      responses:
+        '200':
+          description: Notification successfully marked as read.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      notificationId:
+                        type: string
+                      type:
+                        type: string
+                      message:
+                        type: string
+                      isRead:
+                        type: boolean
+                      createdAt:
+                        type: string
+                        format: date-time
+              example:
+                data:
+                  notificationId: "notif_001"
+                  type: "MentionNotification"
+                  message: "@spring mentioned you in a comment"
+                  isRead: true
+                  createdAt: "2025-04-07T13:10:00Z"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /history:
+    get:
+      tags:
+        - History
+      summary: Get all task status change history
+      description: |
+        Retrieve a list of status change events across tasks to the authenticated user.
+      security:
+        - oAuth2ClientCredentials:
+            - read
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: string
+          description: Filter history by user ID (optional)
+        - in: query
+          name: projectId
+          schema:
+            type: string
+          description: Filter history by project ID (optional)
+      responses:
+        '200':
+          description: A list of all task status change records successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/History'
+              example:
+                data:
+                  - taskId: "task_001"
+                    userId: "user_003"
+                    projectId: "proj_001"
+                    changedAt: "2025-04-02T14:00:00Z"
+                    oldStatus: "in_progress"
+                    newStatus: "completed"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /tasks/{taskId}/history:
+    get:
+      tags:
+        - History
+      summary: Get task status change history
+      description: Retrieve the history of status changes for a specific task.
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the task.
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number of the result set.
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of history items per page.
+      responses:
+        '200':
+          description: List of status change events for the task.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/History'
+                  meta:
+                    type: object
+                    properties:
+                      page: 
+                        type: integer
+                      totalPages:
+                        type: integer
+                      totalHistory:
+                        type: integer
+              example:
+                data:
+                  - changedAt: "2025-03-30T09:00:00Z"
+                    oldStatus: "pending"
+                    newStatus: "in_progress"
+                  - changedAt: "2025-04-01T17:15:00Z"
+                    oldStatus: "in_progress"
+                    newStatus: "completed"
+                meta:
+                  page: 1
+                  totalPages: 1
+                  totalHistory: 2
+        '404':
+          $ref: '#/components/responses/NotFoundError'  
+  
+  /analytics/overview:
+    get:
+      tags:
+        - Analytics
+      summary: Get overview analytics for the user
+      description: |
+        Retrieve an overview of key productivity metrics for the authenticated user, such as task counts and completion rate.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Overview analytics successfully retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalProjects:
+                    type: integer
+                    example: 5
+                    description: Total number of projects owned or joined by the user.
+                  totalTasks:
+                    type: integer
+                    example: 45
+                    description: Total number of tasks across all projects.
+                  completedTasks:
+                    type: integer
+                    example: 38
+                    description: Number of tasks marked as completed.
+                  pendingTasks:
+                    type: integer
+                    example: 5
+                    description: Number of tasks currently pending.
+                  overdueTasks:
+                    type: integer
+                    example: 2
+                    description: Number of tasks past their due date.
+                  completionRate:
+                    type: number
+                    format: float
+                    example: 0.84
+                    description: Ratio of completed tasks to total tasks.
+              example:
+                totalProjects: 5
+                totalTasks: 45
+                completedTasks: 38
+                pendingTasks: 5
+                overdueTasks: 2
+                completionRate: 0.84
+
+  /assistant/ask:
+    post:
+      tags:
+        - Assistant
+      summary: Ask a question about using trackit
+      description: |
+        Send a question to the Trackit assistant powered by ChatGPT to receive guidance. Accepts natural language queries such as "How do I assign a task?" or "Show me overdue tasks.".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                  description: A natural language question about how to use Trackit features.
+              required:
+                - question
+            example:
+              question: "How do I assign a task to a team member?"
+      responses:
+        '200':
+          description: ChatGPT-powered assistant response.
+          content: 
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      answer:
+                        type: string
+                        description: The assistant's generated response.
+              example:
+                data:
+                  answer: "To assign a task to a team member, go to the task detail view and use the assignee dropdown menu to select a user."
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+    oAuth2AuthCode:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/oauth/authorize
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            profile: Access to user profile
+            tasks: Access to task resource
+            projects: Access to project resources
+    oAuth2ClientCredentials:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            read: Read only access to tasks
+            write: Read Write access to tasks
+            projects: Access to project data
+            admin: Admin-level permissions
+          
+
+  schemas:
+    Registration:
+      type: object
+      description: Schema for registering a new user.
+      properties:
+        email:
+          type: string
+          description: Email address of the user.
+          example: "summer.lee@example.com"
+        password:
+          type: string
+          description: Password for the user account.
+          example: "passwordforsummer123"
+        fullName:
+          type: string
+          description: Full name of the user.
+          example: "Summer Lee"
+    
+    User:
+      type: object
+      description: Represents a user of the Trackit system.
+      properties:
+        userId: 
+          type: string
+          description: Unique identifier for the user.
+          example: "user_001"
+        username:
+          type: string
+          description: Public-facing username.
+          example: "winter"
+        fullName:
+          type: string
+          description: Full name of the user.
+          example: "Winter Doe"
+        email:
+          type: string
+          description: Email address of the user.
+          example: "winter.doe@example.com"
+    
+    Project:
+      type: object
+      description: Represents a project that contains tasks.
+      properties:
+        projectId:
+          type: string
+          description: Unique identifier of the project.
+          example: "proj_001"
+        title:
+          type: string
+          description: Title of the project.
+          example: "Trackit Redesign"
+        description:
+          type: string
+          description: Detailed description of the project.
+          example: "UI/UX overhaul of the Trackit platform."
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the project was created.
+          example: "2025-03-01T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the project was last updated.
+          example: "2025-03-03T15:30:00Z"
+
+    Task:
+      type: object
+      description: A task assigned to a user within a project.
+      properties:
+        taskId:
+          type: string
+          description: Unique identifier for the task.
+          example: "task_001"
+        title:
+          type: string
+          description: Title of the task.
+          example: "Design homepage"
+        description: 
+          type: string
+          description: Detailed description of the task.
+          example: "Create layout wireframes for the homepage"
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+          description: Current status of the task.
+          example: "in_progress"
+        assignee:
+          $ref: '#/components/schemas/User'
+        dueDate:
+          type: string
+          format: date
+          description: Due date of the task.
+          example: "2025-04-10"
+    
+    PaginationMeta:
+      type: object
+      description: Pagination metadata for paginated responses.
+      properties:
+        totalItems:
+          type: integer
+          description: Total number of items available
+          example: 48
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Number of items per page
+        totalPages:
+          type: integer
+          description: Total number of available pages
+          example: 5
+
+    Comment:
+        type: object
+        description: Schema representing a comment on a task, optionally with a mention.
+        properties:
+          commentId:
+            type: string
+            description: Unique identifier for the comment.
+            example: "cmt_001"
+          taskId:
+            type: string
+            description: The ID of the task to comment on.
+            example: "task_001"
+          author:
+            $ref: '#/components/schemas/User'
+          content:
+            type: string
+            description: The content of the comment.
+            example: "@john please review the UI update."
+          createdAt:
+            type: string
+            format: date-time
+            description: Timestamp of when the comment was created.
+            example: "2025-04-02T09:20:00Z"
+
+    Notification:
+      type: object
+      description: Notification returned to user based on type.
+      discriminator:
+        propertyName: type
+      required:
+        - notificationId
+        - type
+        - message
+        - isRead
+        - createdAt
+      properties:
+        notificationId:
+          type: string
+        type: 
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    MentionNotification:
+      description: A notification mentioning other user using @syntax.
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          properties:
+            mentionedUser:
+              $ref: '#/components/schemas/User'
+
+    DueSoonNotification:
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          properties:
+            dueDate:
+              type: string
+              format: date
+    
+    CommentNotification:
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          properties:
+            commentId:
+              type: string
+    
+    StatusUpdateNotification:
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          properties:
+            oldStatus:
+              type: string
+            newStatus:
+              type: string
+    
+    History:
+      type: object
+      description: Represents a task status change history record.
+      properties:
+        taskId:
+          type: string
+          description: ID of the task that was updated.
+          example: "task_001"
+        userId:
+          type: string
+          example: "user_001"
+        projectId:
+          type: string
+          example: "proj_001"
+        changedAt:
+          type: string
+          format: date-time
+          description: Time when the status change occurred.
+          example: "2025-04-01T17:15:00Z"
+        oldStatus:
+          type: string
+          description: Previous status before the update.
+          example: "in_progress"
+        newStatus:
+          type: string
+          description: Updated status after the change.
+          example: "completed"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+
+    ErrorResponse: #재사용 가능한 에러 객체 구조(template)
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 401 #임의로 선정
+        message:
+          type: string
+          example: "Authentication token is missing or invalid."
+
+  responses:
+    ValidationError:
+      description: The request input is invalid or malformed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 400
+              message: "Missing required field 'title'"
+
+    UnauthorizedError:
+      description: Unauthorized - JWT token missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 401
+            message: "Authentication token is missing or invalid."
+    
+    ForbiddenError:
+      description: Forbidden - You do not have access to this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 403
+            message: "You are not authorized to acess this resource."
+
+    NotFoundError:
+      description: The specified resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: 404
+              message: "Resource not found"
+          
+
+
+
+
+
+
+
+
+
+
