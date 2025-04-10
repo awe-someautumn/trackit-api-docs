@@ -44,6 +44,7 @@ info:
         message: Internal Server Error - Something went wrong on our end.
 
 servers:
+  - url: https://localhost/:8080
   - url: https://example.com/v1
     description: Production Server
   - url: https://example.com/sandbox
@@ -122,6 +123,8 @@ paths:
         - Authentication
       summary: Login to receive a JWT token
       description: Authenticate an existing user and return a JWT access token for subsequent requests.
+      security:
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -265,6 +268,8 @@ paths:
         - Projects
       summary: Get all projects
       description: Retrieve a list of all accessible projects for the authenticated user.
+      security:
+        - BearerAuth: []
       parameters:
         - in: query
           name: page
@@ -1364,8 +1369,6 @@ paths:
       summary: Get overview analytics for the user
       description: |
         Retrieve an overview of key productivity metrics for the authenticated user, such as task counts and completion rate.
-      security:
-        - ApiKeyAuth: []
       responses:
         '200':
           description: Overview analytics successfully retrieved.
