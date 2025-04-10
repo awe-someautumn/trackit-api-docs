@@ -4,4 +4,4 @@
 It includes real-world examples, multi-authentication flows, and production-level structuring  
 for both developer experience and compliance.
 
-## 🔗 [View Live Documentation](https://awe-someautumn.github.io/trackit-api-docs.html)
+## 🔗 [View Live Documentation](https://awe-someautumn.github.io/trackit-api-docs/trackit-api-docs.html)
