@@ -117,7 +117,7 @@ Content-Type: application/json
 
 ---
 
-🤝 Contributing
+## 🤝 Contributing
 This repository is read-only as a documentation portfolio.
 However, if you'd like to provide feedback or suggestions, feel free to open an issue or contact me directly via GitHub.
 
